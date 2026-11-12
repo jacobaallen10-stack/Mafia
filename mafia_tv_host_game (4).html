@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia TV Host & Display</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+    <!-- Tone.js for TV SFX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        
+        /* Moon Glow Animation */
+        @keyframes moon-pulse {
+            0%, 100% { box-shadow: 0 0 40px 10px rgba(192, 219, 255, 0.4), inset -10px -10px 20px rgba(0, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 70px 20px rgba(192, 219, 255, 0.7), inset -10px -10px 20px rgba(0, 0, 0, 0.5); }
+        }
+        .moon-glow {
+            animation: moon-pulse 4s infinite ease-in-out;
+        }
+
+        /* Sun Pulse Animation */
+        @keyframes sun-pulse {
+            0%, 100% { box-shadow: 0 0 60px 20px rgba(251, 191, 36, 0.6); transform: scale(1); }
+            50% { box-shadow: 0 0 100px 35px rgba(245, 158, 11, 0.8); transform: scale(1.03); }
+        }
+        .sun-glow {
+            animation: sun-pulse 6s infinite ease-in-out;
+        }
+
+        /* Star Twinkle */
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        .star {
+            animation: twinkle var(--duration, 3s) infinite ease-in-out;
+            animation-delay: var(--delay, 0s);
+        }
+
+        /* Custom Scrollbar for list panels */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.4);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- TOP TV HEADER -->
+    <header class="w-full px-6 py-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex justify-between items-center z-50">
+        <div class="flex items-center gap-3">
+            <span class="text-3xl">🎭</span>
+            <h1 class="text-2xl md:text-3xl font-extrabold tracking-wider font-cinzel text-amber-500">MAFIA TV HOST</h1>
+        </div>
+        
+        <!-- Status Bar -->
+        <div id="top-status-bar" class="hidden flex items-center gap-4 md:gap-6">
+            <div class="bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-700 flex items-center gap-2">
+                <span class="text-slate-400 text-xs uppercase font-bold tracking-widest">Day / Cycle</span>
+                <span id="cycle-count" class="text-amber-400 font-extrabold text-lg">1</span>
+            </div>
+            <div class="bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-700 flex items-center gap-3">
+                <span class="text-rose-400 font-bold text-sm">🕵️ Mafia: <span id="alive-mafia-count">0</span></span>
+                <span class="text-slate-500">|</span>
+                <span class="text-emerald-400 font-bold text-sm">🏙️ Town: <span id="alive-town-count">0</span></span>
+            </div>
+            <button type="button" onclick="toggleSound()" id="sound-btn" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-lg border border-slate-700" title="Toggle SFX">🔊</button>
+        </div>
+    </header>
+
+    <!-- MAIN GAME CONTAINER -->
+    <main class="flex-1 flex flex-col justify-center items-center relative p-4 md:p-8 w-full max-w-7xl mx-auto">
+
+        <!-- ================= 1. SETUP SCREEN ================= -->
+        <section id="screen-setup" class="w-full max-w-4xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur">
+            <div class="text-center mb-6">
+                <h2 class="text-3xl md:text-4xl font-extrabold font-cinzel text-amber-400 mb-1">Game Setup</h2>
+                <p class="text-slate-400 text-sm md:text-base">Add player names, set discussion timing, and configure your role deck.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                
+                <!-- LEFT PANEL: PLAYER ROSTER MANAGEMENT -->
+                <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                                <span>👥 Players Roster</span>
+                                <span id="player-count-badge" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs px-2.5 py-0.5 rounded-full font-extrabold">0 Players</span>
+                            </h3>
+                            <button type="button" onclick="bulkAddPrompt()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-lg transition">
+                                + Bulk Import
+                            </button>
+                        </div>
+
+                        <!-- Add Player Input Form -->
+                        <form onsubmit="addPlayer(event); return false;" class="flex gap-2 mb-4">
+                            <input type="text" id="player-name-input" placeholder="Enter player name..." 
+                                class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500 text-slate-100 placeholder:text-slate-600">
+                            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-5 py-2.5 rounded-xl transition text-sm shadow-md">
+                                + Add
+                            </button>
+                        </form>
+
+                        <!-- Player List Tag Container -->
+                        <div id="player-list-container" class="min-h-[140px] max-h-[190px] overflow-y-auto bg-slate-900/40 rounded-xl p-3 border border-slate-800/80 flex flex-wrap gap-2 content-start mb-4">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Discussion Timer Setup Control -->
+                    <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                            ⏱️ Day Discussion Duration:
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <select id="setup-timer-preset" onchange="handleTimerPresetChange(this.value, 'setup')" class="bg-slate-950 border border-slate-700 text-amber-400 font-extrabold text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500">
+                                <option value="1">1 Minute</option>
+                                <option value="2">2 Minutes</option>
+                                <option value="3" selected>3 Minutes</option>
+                                <option value="5">5 Minutes</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <input type="number" id="setup-timer-custom" min="1" max="30" value="3" onchange="setDiscussionMinutes(this.value)" class="hidden w-16 bg-slate-950 border border-slate-700 text-amber-400 font-extrabold text-xs rounded-lg px-2 py-1.5 text-center focus:outline-none focus:border-amber-500" title="Minutes">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT PANEL: DYNAMIC ROLE CONFIGURATION -->
+                <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                                <span>🎭 Roles Deck</span>
+                                <span id="special-roles-count-badge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-0.5 rounded-full font-extrabold">0 Special</span>
+                            </h3>
+                            <button type="button" onclick="toggleCustomRoleDrawer()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded-lg transition shadow">
+                                + Custom Role
+                            </button>
+                        </div>
+
+                        <!-- Quick Re-Add Default Roles Bar -->
+                        <div class="mb-3 p-2 bg-slate-900/80 rounded-xl border border-slate-800 flex flex-wrap items-center gap-1.5 text-xs">
+                            <span class="text-slate-400 font-semibold mr-1">Quick Add:</span>
+                            <button type="button" onclick="quickAddDefaultRole('mafia')" class="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 px-2 py-1 rounded-md font-bold transition">
+                                + 🕵️‍♂️ Mafia
+                            </button>
+                            <button type="button" onclick="quickAddDefaultRole('detective')" class="bg-blue-950 hover:bg-blue-900 text-blue-300 border border-blue-800 px-2 py-1 rounded-md font-bold transition">
+                                + 🔍 Detective
+                            </button>
+                            <button type="button" onclick="quickAddDefaultRole('angel')" class="bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 px-2 py-1 rounded-md font-bold transition">
+                                + 😇 Angel
+                            </button>
+                            <button type="button" onclick="quickAddDefaultRole('jester')" class="bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-800 px-2 py-1 rounded-md font-bold transition">
+                                + 🃏 Jester
+                            </button>
+                        </div>
+
+                        <!-- Custom Role Drawer Form -->
+                        <div id="custom-role-drawer" class="hidden mb-3 p-3 bg-slate-900 rounded-xl border border-slate-700 space-y-2">
+                            <form onsubmit="saveCustomRole(event); return false;" class="space-y-2">
+                                <div class="flex gap-2">
+                                    <input type="text" id="custom-role-title" placeholder="Role Name (e.g. Bodyguard)" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <input type="text" id="custom-role-icon" placeholder="Emoji" value="🎭" class="w-16 text-center bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                                </div>
+                                <div class="flex gap-2 items-center">
+                                    <select id="custom-role-team" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white flex-1 focus:outline-none">
+                                        <option value="Town">Town Alignment 🏙️</option>
+                                        <option value="Mafia">Mafia Alignment 🕵️‍♂️</option>
+                                        <option value="Neutral">Neutral Alignment 🃏</option>
+                                    </select>
+                                    <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs">
+                                        Save Role
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Active Roles Configuration List -->
+                        <div id="roles-config-list" class="min-h-[140px] max-h-[180px] overflow-y-auto space-y-2 pr-1">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Auto Civilians Summary Banner -->
+                    <div class="mt-3 p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 text-xs flex justify-between items-center">
+                        <span>Remaining unassigned players:</span>
+                        <strong id="civilian-filler-count" class="text-amber-400 font-extrabold text-sm">0 Civilians 🧑</strong>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Start Game Controls Bar -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-between items-center pt-4 border-t border-slate-800">
+                <span id="setup-validation-msg" class="text-xs text-slate-400">
+                    Min <strong class="text-amber-400">4 players</strong> & <strong class="text-rose-400">1 Mafia</strong> required to start.
+                </span>
+                <button type="button" id="start-reveal-btn" disabled onclick="assignRolesAndStartReveal()" 
+                    class="w-full sm:w-auto opacity-50 cursor-not-allowed bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-lg px-8 py-3.5 rounded-2xl shadow-xl transition transform active:scale-95">
+                    🔀 Randomize & Start Game →
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= 2. SECRET ROLE REVEAL SCREEN ================= -->
+        <section id="screen-reveal" class="hidden w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur text-center">
+            <div class="mb-6">
+                <span class="text-xs uppercase tracking-widest font-bold text-amber-500 bg-amber-500/10 px-4 py-1 rounded-full border border-amber-500/20">Private Setup Step</span>
+                <h2 class="text-2xl md:text-3xl font-extrabold font-cinzel mt-3">Pass the Device / Look Away!</h2>
+            </div>
+
+            <div class="bg-slate-950 p-8 rounded-2xl border border-slate-800 my-6 flex flex-col items-center justify-center min-h-[240px] relative">
+                <div id="reveal-prompt-state">
+                    <p class="text-slate-400 text-lg mb-2">Pass screen to:</p>
+                    <h3 id="reveal-player-name" class="text-4xl md:text-5xl font-extrabold text-amber-400 font-cinzel">Player Name</h3>
+                    <button type="button" onclick="revealRoleCard()" class="mt-8 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-8 py-3 rounded-xl font-bold transition">
+                        👁️ Tap to View Secret Role
+                    </button>
+                </div>
+
+                <div id="reveal-card-state" class="hidden flex flex-col items-center animate-fade-in">
+                    <span id="reveal-role-icon" class="text-6xl mb-3">🕵️‍♂️</span>
+                    <h4 id="reveal-role-title" class="text-3xl font-extrabold font-cinzel text-white mb-1">MAFIA</h4>
+                    <span id="reveal-role-team" class="text-xs font-bold uppercase tracking-widest px-3 py-0.5 rounded-full mb-3 bg-rose-950 text-rose-300 border border-rose-800">Mafia Team</span>
+                    <p id="reveal-role-desc" class="text-slate-400 text-sm max-w-sm">Eliminate civilians each night without getting caught.</p>
+                    <button type="button" onclick="nextRoleReveal()" class="mt-8 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-8 py-3 rounded-xl transition shadow-lg">
+                        Got It (Hide Role)
+                    </button>
+                </div>
+            </div>
+
+            <p id="reveal-progress" class="text-slate-500 text-sm font-semibold">Player 1 of X</p>
+        </section>
+
+        <!-- ================= 3. NIGHT MODE SCREEN ================= -->
+        <section id="screen-night" class="hidden w-full flex-1 flex flex-col items-center justify-between relative py-6">
+            <div class="absolute inset-0 -z-10 overflow-hidden rounded-3xl bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950/80 border border-slate-800">
+                <div class="absolute top-8 left-1/2 -translate-x-1/2 w-40 h-40 md:w-52 md:h-52 bg-slate-100 rounded-full moon-glow flex items-center justify-center">
+                    <div class="w-full h-full rounded-full bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 opacity-90"></div>
+                </div>
+                <div id="night-stars-container" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+
+            <div class="text-center mt-6 z-10 bg-slate-950/70 backdrop-blur px-8 py-4 rounded-2xl border border-slate-800/80">
+                <span class="text-indigo-400 text-xs uppercase tracking-widest font-black">🌙 Night Phase</span>
+                <h2 id="night-step-title" class="text-3xl md:text-5xl font-extrabold font-cinzel text-white mt-1">Town Goes to Sleep</h2>
+                <p id="night-step-instructions" class="text-slate-300 text-base md:text-lg mt-2 max-w-xl">All players close your eyes and lower your heads.</p>
+            </div>
+
+            <div class="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 my-6 backdrop-blur shadow-2xl z-10">
+                
+                <!-- Night Action Step: Mafia -->
+                <div id="night-action-mafia" class="hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="text-3xl">🕵️‍♂️</span>
+                        <div>
+                            <h3 class="text-xl font-bold text-rose-400">Mafia: Select Target</h3>
+                            <p class="text-xs text-slate-400">Who do the Mafias agree to eliminate tonight?</p>
+                        </div>
+                    </div>
+                    <div id="mafia-targets-list" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1"></div>
+                </div>
+
+                <!-- Night Action Step: Detective -->
+                <div id="night-action-detective" class="hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="text-3xl">🔍</span>
+                        <div>
+                            <h3 class="text-xl font-bold text-blue-400">Detective: Investigate Suspect</h3>
+                            <p class="text-xs text-slate-400">Host will silently signal YES (Mafia) or NO (Town).</p>
+                        </div>
+                    </div>
+                    <div id="detective-targets-list" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1"></div>
+                    <div id="detective-result-box" class="hidden mt-4 p-4 rounded-xl border text-center font-bold text-lg"></div>
+                </div>
+
+                <!-- Night Action Step: Angel / Doctor -->
+                <div id="night-action-angel" class="hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="text-3xl">😇</span>
+                        <div>
+                            <h3 class="text-xl font-bold text-emerald-400">Angel / Doctor: Protect Player</h3>
+                            <p class="text-xs text-slate-400">Choose someone to save from elimination tonight.</p>
+                        </div>
+                    </div>
+                    <div id="angel-targets-list" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1"></div>
+                </div>
+
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-800">
+                    <button type="button" onclick="prevNightStep()" id="night-prev-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-5 py-2.5 rounded-xl text-sm transition">
+                        ← Back
+                    </button>
+                    <button type="button" onclick="nextNightStep()" id="night-next-btn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-6 py-2.5 rounded-xl text-sm transition">
+                        Next →
+                    </button>
+                </div>
+            </div>
+
+            <div class="z-10 text-slate-400 text-xs font-semibold bg-slate-950/80 px-4 py-2 rounded-full border border-slate-800">
+                Host Tip: Ensure players keep their eyes closed except when their role is called.
+            </div>
+        </section>
+
+        <!-- ================= 4. DAY MODE SCREEN ================= -->
+        <section id="screen-day" class="hidden w-full flex-1 flex flex-col items-center justify-between relative py-6">
+            <div class="absolute inset-0 -z-10 overflow-hidden rounded-3xl bg-gradient-to-b from-sky-400 via-amber-200 to-amber-50 border border-amber-200">
+                <div class="absolute top-6 left-1/2 -translate-x-1/2 w-44 h-44 md:w-60 md:h-60 bg-amber-400 rounded-full sun-glow flex items-center justify-center">
+                    <div class="w-full h-full rounded-full bg-gradient-to-tr from-amber-300 via-yellow-400 to-orange-400 opacity-90"></div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 z-10 bg-slate-900/90 text-slate-100 backdrop-blur px-8 py-6 rounded-3xl border border-slate-800 shadow-2xl max-w-2xl w-full">
+                <span class="text-amber-400 text-xs uppercase tracking-widest font-black">☀️ Day Phase</span>
+                <h2 class="text-3xl md:text-5xl font-extrabold font-cinzel text-white mt-1">Town Wakes Up!</h2>
+                
+                <div id="morning-report-card" class="mt-4 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                    <p class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Morning News</p>
+                    <p id="morning-report-text" class="text-xl md:text-2xl font-black text-rose-400">Loading night event...</p>
+                </div>
+            </div>
+
+            <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-6 my-6 z-10">
+                <!-- Discussion Timer Panel with Editable Controls -->
+                <div class="bg-slate-900/90 backdrop-blur border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col items-center justify-center text-center">
+                    <h3 class="text-slate-400 text-xs font-extrabold uppercase tracking-widest mb-1">Discussion Timer</h3>
+                    
+                    <div id="timer-display" class="text-5xl md:text-6xl font-black font-mono text-amber-400 my-1">03:00</div>
+                    
+                    <!-- Day Panel Timer Controls -->
+                    <div class="flex items-center gap-2 my-2">
+                        <select id="day-timer-preset" onchange="handleTimerPresetChange(this.value, 'day')" class="bg-slate-950 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-2 py-1 focus:outline-none">
+                            <option value="1">1 Min</option>
+                            <option value="2">2 Mins</option>
+                            <option value="3" selected>3 Mins</option>
+                            <option value="5">5 Mins</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                        <input type="number" id="day-timer-custom" min="1" max="30" value="3" onchange="setDiscussionMinutes(this.value)" class="hidden w-14 bg-slate-950 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-1.5 py-1 text-center focus:outline-none">
+                    </div>
+
+                    <div class="flex gap-2 mt-2">
+                        <button type="button" onclick="toggleTimer()" id="timer-start-btn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2 rounded-xl text-sm transition">
+                            Start
+                        </button>
+                        <button type="button" onclick="resetTimer()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition border border-slate-700">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Town Elimination Panel -->
+                <div class="md:col-span-2 bg-slate-900/90 backdrop-blur border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <h3 class="text-xl font-bold font-cinzel text-white">🗳️ Town Accusation & Vote</h3>
+                            <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="reveal-role-on-eliminate" checked class="rounded accent-amber-500">
+                                Reveal role upon elimination
+                            </label>
+                        </div>
+                        <p class="text-slate-400 text-xs mb-3">Select suspect to eliminate by majority vote:</p>
+                        
+                        <div id="town-vote-list" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-40 overflow-y-auto p-1"></div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-800">
+                        <button type="button" onclick="skipTownVote()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-5 py-2.5 rounded-xl text-sm transition border border-slate-700">
+                            Skip Vote (No Elimination)
+                        </button>
+                        <button type="button" onclick="confirmTownElimination()" id="confirm-vote-btn" disabled class="opacity-50 cursor-not-allowed bg-rose-600 hover:bg-rose-500 text-white font-black px-6 py-2.5 rounded-xl text-sm transition shadow-lg shadow-rose-900/40">
+                            Eliminate Player ⚖️
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Living Roster Overview Bar -->
+            <div class="w-full max-w-5xl z-10 bg-slate-950/80 backdrop-blur border border-slate-800 rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs uppercase font-extrabold tracking-widest text-slate-400">Player Roster Status</span>
+                    <span class="text-xs text-slate-500"><span id="living-ratio-text">0/0</span> Alive</span>
+                </div>
+                <div id="roster-status-pills" class="flex flex-wrap gap-2 max-h-24 overflow-y-auto"></div>
+            </div>
+        </section>
+
+        <!-- ================= 5. VICTORY SCREEN ================= -->
+        <section id="screen-victory" class="hidden w-full max-w-3xl bg-slate-900/95 border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl backdrop-blur text-center z-20">
+            <div id="victory-icon-container" class="text-7xl md:text-8xl mb-4 animate-bounce">🏆</div>
+            <h2 id="victory-title" class="text-4xl md:text-6xl font-black font-cinzel text-amber-400 mb-2">MAFIA WINS!</h2>
+            <p id="victory-subtitle" class="text-slate-300 text-lg md:text-xl max-w-md mx-auto mb-8">Game concluded.</p>
+
+            <div class="bg-slate-950 rounded-2xl p-6 border border-slate-800 mb-8 text-left">
+                <h3 class="text-slate-400 text-xs font-extrabold uppercase tracking-widest mb-4 text-center">Final Roster & Secret Roles</h3>
+                <div id="final-roles-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto"></div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <button type="button" onclick="resetGameToSetup()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-lg px-8 py-4 rounded-2xl transition shadow-xl">
+                    🔄 Play Again (New Game)
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="w-full text-center py-3 text-slate-600 text-xs border-t border-slate-900 bg-slate-950">
+        Mafia TV Host Edition &bull; Dynamic Roles & Secret Role Engine
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* ================= GAME STATE VARIABLES ================= */
+        let players = []; 
+        // Player: { id, name, role: { id, title, icon, team, desc }, isAlive: true }
+
+        // Preset library for quick role restoration (No Vigilante)
+        const DEFAULT_ROLES_PRESETS = {
+            mafia: { id: 'mafia', title: 'Mafia', icon: '🕵️‍♂️', team: 'Mafia', desc: 'Eliminate non-mafia players secretively each night.' },
+            detective: { id: 'detective', title: 'Detective', icon: '🔍', team: 'Town', desc: 'Investigate one player each night to learn if they are Mafia.' },
+            angel: { id: 'angel', title: 'Angel / Doctor', icon: '😇', team: 'Town', desc: 'Shield one player each night from elimination.' },
+            jester: { id: 'jester', title: 'Jester', icon: '🃏', team: 'Neutral', desc: 'Trick the town into voting you out during daytime to win!' }
+        };
+
+        // Active Roles Deck configuration
+        let activeRolesConfig = [
+            { id: 'mafia', title: 'Mafia', icon: '🕵️‍♂️', team: 'Mafia', count: 2, desc: 'Eliminate non-mafia players secretively each night.' },
+            { id: 'detective', title: 'Detective', icon: '🔍', team: 'Town', count: 1, desc: 'Investigate one player each night to learn if they are Mafia.' },
+            { id: 'angel', title: 'Angel / Doctor', icon: '😇', team: 'Town', count: 1, desc: 'Shield one player each night from elimination.' }
+        ];
+
+        let revealIndex = 0;
+        let cycleNumber = 1;
+        let soundEnabled = true;
+
+        // Discussion Timer State
+        let discussionMinutes = 3;
+        let timerSeconds = 180;
+        let timerInterval = null;
+        let isTimerRunning = false;
+
+        // Night Phase Dynamic Steps
+        let nightStepSequence = []; // Steps: ['intro', 'mafia', 'detective', 'angel']
+        let activeNightStepIndex = 0;
+        let nightTargets = { mafia: null, detective: null, angel: null };
+
+        let selectedTownVoteId = null;
+
+        /* ================= AUDIO / SFX SETUP (Tone.js) ================= */
+        const synth = new Tone.Synth().toDestination();
+        const polySynth = new Tone.PolySynth().toDestination();
+
+        function playSFX(type) {
+            if (!soundEnabled) return;
+            try {
+                if (Tone.context.state !== 'running') Tone.start();
+                const now = Tone.now();
+                if (type === 'click') synth.triggerAttackRelease("C4", "8n", now);
+                else if (type === 'night') polySynth.triggerAttackRelease(["C3", "Eb3", "G3"], "2n", now);
+                else if (type === 'day') polySynth.triggerAttackRelease(["G4", "B4", "D5"], "4n", now);
+                else if (type === 'eliminate') synth.triggerAttackRelease("A2", "4n", now);
+                else if (type === 'win') polySynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "1m", now);
+            } catch (e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-btn').innerText = soundEnabled ? '🔊' : '🔇';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderSetupPlayers();
+            renderRolesConfigList();
+            updateTimerDisplay();
+        });
+
+        /* ================= 1. DISCUSSION TIMER MANAGEMENT ================= */
+        function handleTimerPresetChange(val, context) {
+            const setupCustomInput = document.getElementById('setup-timer-custom');
+            const dayCustomInput = document.getElementById('day-timer-custom');
+
+            if (val === 'custom') {
+                if (context === 'setup') setupCustomInput.classList.remove('hidden');
+                if (context === 'day') dayCustomInput.classList.remove('hidden');
+            } else {
+                setupCustomInput.classList.add('hidden');
+                dayCustomInput.classList.add('hidden');
+                setDiscussionMinutes(parseInt(val, 10));
+            }
+            playSFX('click');
+        }
+
+        function setDiscussionMinutes(mins) {
+            const parsed = parseInt(mins, 10);
+            if (isNaN(parsed) || parsed < 1) return;
+            discussionMinutes = Math.min(30, parsed);
+
+            // Sync preset dropdowns if matching preset
+            const setupPreset = document.getElementById('setup-timer-preset');
+            const dayPreset = document.getElementById('day-timer-preset');
+            const setupCustomInput = document.getElementById('setup-timer-custom');
+            const dayCustomInput = document.getElementById('day-timer-custom');
+
+            setupCustomInput.value = discussionMinutes;
+            dayCustomInput.value = discussionMinutes;
+
+            if ([1, 2, 3, 5].includes(discussionMinutes)) {
+                setupPreset.value = discussionMinutes.toString();
+                dayPreset.value = discussionMinutes.toString();
+                setupCustomInput.classList.add('hidden');
+                dayCustomInput.classList.add('hidden');
+            } else {
+                setupPreset.value = 'custom';
+                dayPreset.value = 'custom';
+                setupCustomInput.classList.remove('hidden');
+                dayCustomInput.classList.remove('hidden');
+            }
+
+            if (!isTimerRunning) {
+                timerSeconds = discussionMinutes * 60;
+                updateTimerDisplay();
+            }
+        }
+
+        /* ================= 2. DYNAMIC ROLES MANAGEMENT ================= */
+        function toggleCustomRoleDrawer() {
+            const drawer = document.getElementById('custom-role-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        function quickAddDefaultRole(presetKey) {
+            const preset = DEFAULT_ROLES_PRESETS[presetKey];
+            if (!preset) return;
+
+            let existing = activeRolesConfig.find(r => r.id === preset.id);
+            if (existing) {
+                existing.count += 1;
+            } else {
+                activeRolesConfig.push({
+                    ...preset,
+                    count: 1
+                });
+            }
+
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function saveCustomRole(e) {
+            if (e) e.preventDefault();
+            const titleInput = document.getElementById('custom-role-title');
+            const iconInput = document.getElementById('custom-role-icon');
+            const teamInput = document.getElementById('custom-role-team');
+
+            const title = titleInput.value.trim();
+            const icon = iconInput.value.trim() || '🎭';
+            const team = teamInput.value;
+
+            if (!title) return;
+
+            activeRolesConfig.push({
+                id: 'custom_' + Date.now(),
+                title: title,
+                icon: icon,
+                team: team,
+                count: 1,
+                desc: `Custom ${team} alignment role.`
+            });
+
+            titleInput.value = '';
+            toggleCustomRoleDrawer();
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function adjustRoleCount(roleId, delta) {
+            const role = activeRolesConfig.find(r => r.id === roleId);
+            if (!role) return;
+            role.count = Math.max(0, role.count + delta);
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function removeRole(roleId) {
+            activeRolesConfig = activeRolesConfig.filter(r => r.id !== roleId);
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function renderRolesConfigList() {
+            const container = document.getElementById('roles-config-list');
+            const specialBadge = document.getElementById('special-roles-count-badge');
+            const fillerCountEl = document.getElementById('civilian-filler-count');
+
+            container.innerHTML = '';
+            let totalSpecialRoles = 0;
+
+            activeRolesConfig.forEach(role => {
+                totalSpecialRoles += role.count;
+
+                const card = document.createElement('div');
+                const isMafia = role.team === 'Mafia';
+                const isNeutral = role.team === 'Neutral';
+
+                card.className = `p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+                    isMafia ? 'bg-rose-950/30 border-rose-900/50 text-rose-200' :
+                    isNeutral ? 'bg-amber-950/30 border-amber-900/50 text-amber-200' :
+                    'bg-slate-900 border-slate-800 text-slate-200'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 max-w-[65%]">
+                        <span class="text-base">${role.icon}</span>
+                        <div class="truncate">
+                            <span class="font-bold">${escapeHTML(role.title)}</span>
+                            <span class="text-[10px] opacity-75 uppercase ml-1 px-1.5 py-0.2 rounded border ${
+                                isMafia ? 'bg-rose-900/60 border-rose-700 text-rose-200' : 'bg-slate-800 border-slate-700 text-slate-300'
+                            }">${role.team}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+                            <button type="button" onclick="adjustRoleCount('${role.id}', -1)" class="px-2 py-0.5 text-slate-400 hover:bg-slate-800 font-extrabold">-</button>
+                            <span class="px-2 font-bold text-amber-400">${role.count}</span>
+                            <button type="button" onclick="adjustRoleCount('${role.id}', 1)" class="px-2 py-0.5 text-slate-400 hover:bg-slate-800 font-extrabold">+</button>
+                        </div>
+                        <button type="button" onclick="removeRole('${role.id}')" class="text-slate-500 hover:text-rose-400 font-bold px-1 text-sm" title="Remove Role">&times;</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            specialBadge.innerText = `${totalSpecialRoles} Special`;
+
+            const civilianFiller = Math.max(0, players.length - totalSpecialRoles);
+            fillerCountEl.innerText = `${civilianFiller} Civilians 🧑`;
+
+            validateSetup();
+        }
+
+        /* ================= 3. SETUP & PLAYER MANAGEMENT ================= */
+        function addPlayer(e) {
+            if (e) e.preventDefault();
+            const input = document.getElementById('player-name-input');
+            const name = input.value.trim();
+            if (!name) return;
+
+            if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                alert('A player with that name has already been added.');
+                return;
+            }
+
+            players.push({
+                id: Date.now() + Math.random(),
+                name: name,
+                role: null,
+                isAlive: true
+            });
+
+            input.value = '';
+            renderSetupPlayers();
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function removePlayer(id) {
+            players = players.filter(p => p.id !== id);
+            renderSetupPlayers();
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function bulkAddPrompt() {
+            const raw = prompt("Enter player names separated by commas:", "Alice, Bob, Charlie, David, Eve, Frank");
+            if (!raw) return;
+
+            const names = raw.split(',').map(n => n.trim()).filter(n => n.length > 0);
+            names.forEach(name => {
+                if (!players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                    players.push({
+                        id: Date.now() + Math.random(),
+                        name: name,
+                        role: null,
+                        isAlive: true
+                    });
+                }
+            });
+
+            renderSetupPlayers();
+            renderRolesConfigList();
+            playSFX('click');
+        }
+
+        function renderSetupPlayers() {
+            const container = document.getElementById('player-list-container');
+            const badge = document.getElementById('player-count-badge');
+
+            container.innerHTML = '';
+            players.forEach((player, index) => {
+                const tag = document.createElement('div');
+                tag.className = 'bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-semibold shadow-sm animate-fade-in';
+                tag.innerHTML = `
+                    <span>${index + 1}. ${escapeHTML(player.name)}</span>
+                    <button type="button" onclick="removePlayer(${player.id})" class="text-slate-400 hover:text-rose-400 font-bold ml-1 text-sm">&times;</button>
+                `;
+                container.appendChild(tag);
+            });
+
+            badge.innerText = `${players.length} Players`;
+            validateSetup();
+        }
+
+        function validateSetup() {
+            const startBtn = document.getElementById('start-reveal-btn');
+            const mafiaCount = activeRolesConfig.filter(r => r.team === 'Mafia').reduce((sum, r) => sum + r.count, 0);
+
+            if (players.length >= 4 && mafiaCount >= 1) {
+                startBtn.disabled = false;
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                startBtn.disabled = true;
+                startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        /* ================= 4. ROLE RANDOMIZATION & REVEAL ================= */
+        function assignRolesAndStartReveal() {
+            if (players.length < 4) return;
+
+            let roleDeck = [];
+            activeRolesConfig.forEach(r => {
+                for (let i = 0; i < r.count; i++) {
+                    roleDeck.push({
+                        id: r.id,
+                        title: r.title,
+                        icon: r.icon,
+                        team: r.team,
+                        desc: r.desc
+                    });
+                }
+            });
+
+            while (roleDeck.length < players.length) {
+                roleDeck.push({
+                    id: 'civilian',
+                    title: 'Civilian',
+                    icon: '🧑',
+                    team: 'Town',
+                    desc: 'Pay attention during discussions, vote out suspected Mafias, and protect the town!'
+                });
+            }
+
+            // Fisher-Yates shuffle
+            for (let i = roleDeck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [roleDeck[i], roleDeck[j]] = [roleDeck[j], roleDeck[i]];
+            }
+
+            players.forEach((p, idx) => {
+                p.role = roleDeck[idx];
+            });
+
+            revealIndex = 0;
+            showScreen('screen-reveal');
+            updateRevealCard();
+            playSFX('click');
+        }
+
+        function updateRevealCard() {
+            const player = players[revealIndex];
+            document.getElementById('reveal-player-name').innerText = player.name;
+            document.getElementById('reveal-progress').innerText = `Player ${revealIndex + 1} of ${players.length}`;
+
+            document.getElementById('reveal-prompt-state').classList.remove('hidden');
+            document.getElementById('reveal-card-state').classList.add('hidden');
+        }
+
+        function revealRoleCard() {
+            const player = players[revealIndex];
+            const iconEl = document.getElementById('reveal-role-icon');
+            const titleEl = document.getElementById('reveal-role-title');
+            const teamEl = document.getElementById('reveal-role-team');
+            const descEl = document.getElementById('reveal-role-desc');
+
+            iconEl.innerText = player.role.icon;
+            titleEl.innerText = player.role.title;
+            descEl.innerText = player.role.desc;
+
+            if (player.role.team === 'Mafia') {
+                titleEl.className = 'text-3xl font-extrabold font-cinzel text-rose-500 mb-1';
+                teamEl.className = 'text-xs font-bold uppercase tracking-widest px-3 py-0.5 rounded-full mb-3 bg-rose-950 text-rose-300 border border-rose-800';
+                teamEl.innerText = 'Mafia Team';
+            } else if (player.role.team === 'Neutral') {
+                titleEl.className = 'text-3xl font-extrabold font-cinzel text-amber-400 mb-1';
+                teamEl.className = 'text-xs font-bold uppercase tracking-widest px-3 py-0.5 rounded-full mb-3 bg-amber-950 text-amber-300 border border-amber-800';
+                teamEl.innerText = 'Neutral Alignment';
+            } else {
+                titleEl.className = 'text-3xl font-extrabold font-cinzel text-emerald-400 mb-1';
+                teamEl.className = 'text-xs font-bold uppercase tracking-widest px-3 py-0.5 rounded-full mb-3 bg-emerald-950 text-emerald-300 border border-emerald-800';
+                teamEl.innerText = 'Town Alignment';
+            }
+
+            document.getElementById('reveal-prompt-state').classList.add('hidden');
+            document.getElementById('reveal-card-state').classList.remove('hidden');
+            playSFX('click');
+        }
+
+        function nextRoleReveal() {
+            revealIndex++;
+            if (revealIndex < players.length) {
+                updateRevealCard();
+            } else {
+                startNightPhase();
+            }
+            playSFX('click');
+        }
+
+        /* ================= 5. NIGHT PHASE LOGIC ================= */
+        function startNightPhase() {
+            nightStepSequence = ['intro'];
+            if (players.some(p => p.role && p.role.team === 'Mafia' && p.isAlive)) nightStepSequence.push('mafia');
+            if (players.some(p => p.role && p.role.id === 'detective' && p.isAlive)) nightStepSequence.push('detective');
+            if (players.some(p => p.role && p.role.id === 'angel' && p.isAlive)) nightStepSequence.push('angel');
+
+            activeNightStepIndex = 0;
+            nightTargets = { mafia: null, detective: null, angel: null };
+            
+            document.getElementById('top-status-bar').classList.remove('hidden');
+            updateTopStatus();
+
+            generateNightStars();
+            showScreen('screen-night');
+            renderNightStep();
+            playSFX('night');
+        }
+
+        function generateNightStars() {
+            const container = document.getElementById('night-stars-container');
+            container.innerHTML = '';
+            for (let i = 0; i < 40; i++) {
+                const star = document.createElement('div');
+                const size = Math.random() * 3 + 1;
+                star.className = 'absolute bg-white rounded-full star';
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.setProperty('--duration', `${2 + Math.random() * 3}s`);
+                star.style.setProperty('--delay', `${Math.random() * 2}s`);
+                container.appendChild(star);
+            }
+        }
+
+        function renderNightStep() {
+            const stepKey = nightStepSequence[activeNightStepIndex] || 'intro';
+            
+            const titleEl = document.getElementById('night-step-title');
+            const instructionsEl = document.getElementById('night-step-instructions');
+            
+            const mafiaBox = document.getElementById('night-action-mafia');
+            const detBox = document.getElementById('night-action-detective');
+            const angelBox = document.getElementById('night-action-angel');
+
+            mafiaBox.classList.add('hidden');
+            detBox.classList.add('hidden');
+            angelBox.classList.add('hidden');
+
+            const prevBtn = document.getElementById('night-prev-btn');
+            const nextBtn = document.getElementById('night-next-btn');
+            prevBtn.style.visibility = activeNightStepIndex === 0 ? 'hidden' : 'visible';
+
+            if (stepKey === 'intro') {
+                titleEl.innerText = "Town Sleep Phase";
+                instructionsEl.innerText = "All players close your eyes and lower your heads. Host will call active roles in order.";
+            } else if (stepKey === 'mafia') {
+                titleEl.innerText = "Mafia Wakes Up";
+                instructionsEl.innerText = "Mafia wake up, open your eyes, recognize each other, and silently point to a target.";
+                mafiaBox.classList.remove('hidden');
+                populateNightTargetGrid('mafia-targets-list', 'mafia');
+            } else if (stepKey === 'detective') {
+                titleEl.innerText = "Detective Wakes Up";
+                instructionsEl.innerText = "Detective wake up and point to someone to investigate their alignment.";
+                detBox.classList.remove('hidden');
+                populateNightTargetGrid('detective-targets-list', 'detective');
+                document.getElementById('detective-result-box').classList.add('hidden');
+            } else if (stepKey === 'angel') {
+                titleEl.innerText = "Angel / Doctor Wakes Up";
+                instructionsEl.innerText = "Angel wake up and point to someone to save from elimination tonight.";
+                angelBox.classList.remove('hidden');
+                populateNightTargetGrid('angel-targets-list', 'angel');
+            }
+
+            const isLast = activeNightStepIndex === nightStepSequence.length - 1;
+            nextBtn.innerText = isLast ? "Wake Town (Day) ☀️" : "Next Role →";
+        }
+
+        function populateNightTargetGrid(containerId, roleKey) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            const living = players.filter(p => p.isAlive);
+            living.forEach(player => {
+                const isSelected = nightTargets[roleKey] === player.id;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-3 rounded-xl border font-bold text-sm text-left transition flex justify-between items-center ${
+                    isSelected 
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-300' 
+                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-600'
+                }`;
+                btn.onclick = () => selectNightTarget(roleKey, player.id);
+                btn.innerHTML = `
+                    <span class="truncate">${escapeHTML(player.name)}</span>
+                    ${isSelected ? '<span>✅</span>' : ''}
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function selectNightTarget(roleKey, playerId) {
+            nightTargets[roleKey] = playerId;
+            populateNightTargetGrid(`${roleKey}-targets-list`, roleKey);
+            playSFX('click');
+
+            if (roleKey === 'detective') {
+                const target = players.find(p => p.id === playerId);
+                const resBox = document.getElementById('detective-result-box');
+                resBox.classList.remove('hidden');
+                if (target && target.role && target.role.team === 'Mafia') {
+                    resBox.className = "mt-4 p-4 rounded-xl border border-rose-600 bg-rose-950/80 text-rose-300 text-center font-bold text-lg animate-fade-in";
+                    resBox.innerHTML = `🕵️ Host Signal: <strong>THUMBS UP (YES)</strong><br><span class="text-xs font-normal">${escapeHTML(target.name)} IS MAFIA!</span>`;
+                } else {
+                    resBox.className = "mt-4 p-4 rounded-xl border border-emerald-600 bg-emerald-950/80 text-emerald-300 text-center font-bold text-lg animate-fade-in";
+                    resBox.innerHTML = `🛡️ Host Signal: <strong>THUMBS DOWN (NO)</strong><br><span class="text-xs font-normal">${escapeHTML(target ? target.name : '')} is NOT Mafia.</span>`;
+                }
+            }
+        }
+
+        function nextNightStep() {
+            if (activeNightStepIndex < nightStepSequence.length - 1) {
+                activeNightStepIndex++;
+                renderNightStep();
+                playSFX('click');
+            } else {
+                resolveNightAndStartDay();
+            }
+        }
+
+        function prevNightStep() {
+            if (activeNightStepIndex > 0) {
+                activeNightStepIndex--;
+                renderNightStep();
+                playSFX('click');
+            }
+        }
+
+        /* ================= 6. DAY PHASE LOGIC ================= */
+        function resolveNightAndStartDay() {
+            const mafiaTargetId = nightTargets.mafia;
+            const angelSavedId = nightTargets.angel;
+            const reportEl = document.getElementById('morning-report-text');
+            
+            if (mafiaTargetId && mafiaTargetId !== angelSavedId) {
+                const victim = players.find(p => p.id === mafiaTargetId);
+                if (victim) {
+                    victim.isAlive = false;
+                    reportEl.className = "text-xl md:text-2xl font-black text-rose-400 animate-fade-in";
+                    reportEl.innerText = `💀 ${victim.name} was eliminated during the night!`;
+                }
+            } else {
+                reportEl.className = "text-xl md:text-2xl font-black text-emerald-400 animate-fade-in";
+                reportEl.innerText = `🛡️ Miraculously, no one was killed last night!`;
+            }
+
+            updateTopStatus();
+
+            if (checkVictoryConditions()) return;
+
+            showScreen('screen-day');
+            resetTimer();
+            selectedTownVoteId = null;
+            renderDayVoteList();
+            renderRosterPills();
+            playSFX('day');
+        }
+
+        function renderDayVoteList() {
+            const container = document.getElementById('town-vote-list');
+            const confirmBtn = document.getElementById('confirm-vote-btn');
+            container.innerHTML = '';
+            
+            const living = players.filter(p => p.isAlive);
+            living.forEach(player => {
+                const isSelected = selectedTownVoteId === player.id;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-3 rounded-xl border font-bold text-sm text-left transition flex justify-between items-center ${
+                    isSelected 
+                        ? 'bg-rose-950 border-rose-500 text-rose-200 ring-2 ring-rose-500/50' 
+                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                }`;
+                btn.onclick = () => {
+                    selectedTownVoteId = player.id;
+                    renderDayVoteList();
+                    playSFX('click');
+                };
+                btn.innerHTML = `
+                    <span class="truncate">${escapeHTML(player.name)}</span>
+                    ${isSelected ? '<span>⚖️</span>' : ''}
+                `;
+                container.appendChild(btn);
+            });
+
+            if (selectedTownVoteId) {
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function confirmTownElimination() {
+            if (!selectedTownVoteId) return;
+            const player = players.find(p => p.id === selectedTownVoteId);
+            if (!player) return;
+
+            const revealRole = document.getElementById('reveal-role-on-eliminate').checked;
+            player.isAlive = false;
+            playSFX('eliminate');
+
+            const roleTitle = player.role ? player.role.title : 'Civilian';
+            const roleMsg = revealRole ? ` standard role was [${roleTitle.toUpperCase()}]` : '';
+
+            // Check Jester Win Condition
+            if (player.role && (player.role.id === 'jester' || player.role.title.toLowerCase().includes('jester'))) {
+                alert(`🎭 Town has voted to eliminate ${player.name}! But wait... ${player.name} was the JESTER! 🃏`);
+                triggerVictory('Jester', player.name);
+                return;
+            }
+
+            alert(`⚖️ Town has voted to eliminate ${player.name}.${roleMsg}`);
+
+            updateTopStatus();
+
+            if (checkVictoryConditions()) return;
+
+            cycleNumber++;
+            startNightPhase();
+        }
+
+        function skipTownVote() {
+            playSFX('click');
+            cycleNumber++;
+            startNightPhase();
+        }
+
+        function renderRosterPills() {
+            const container = document.getElementById('roster-status-pills');
+            const ratioText = document.getElementById('living-ratio-text');
+            container.innerHTML = '';
+
+            const aliveCount = players.filter(p => p.isAlive).length;
+            ratioText.innerText = `${aliveCount}/${players.length}`;
+
+            players.forEach(p => {
+                const pill = document.createElement('div');
+                if (p.isAlive) {
+                    pill.className = 'px-3 py-1 bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 rounded-lg text-xs font-semibold flex items-center gap-1.5';
+                    pill.innerHTML = `<span>💚</span> <span>${escapeHTML(p.name)}</span>`;
+                } else {
+                    pill.className = 'px-3 py-1 bg-slate-900 border border-slate-800 text-slate-500 line-through rounded-lg text-xs font-medium flex items-center gap-1.5 opacity-60';
+                    pill.innerHTML = `<span>💀</span> <span>${escapeHTML(p.name)}</span>`;
+                }
+                container.appendChild(pill);
+            });
+        }
+
+        /* ================= 7. DAY TIMER CONTROL ================= */
+        function toggleTimer() {
+            const btn = document.getElementById('timer-start-btn');
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                btn.innerText = 'Start';
+                btn.className = 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2 rounded-xl text-sm transition';
+            } else {
+                isTimerRunning = true;
+                btn.innerText = 'Pause';
+                btn.className = 'bg-rose-600 hover:bg-rose-500 text-white font-black px-5 py-2 rounded-xl text-sm transition';
+                
+                timerInterval = setInterval(() => {
+                    if (timerSeconds > 0) {
+                        timerSeconds--;
+                        updateTimerDisplay();
+                    } else {
+                        clearInterval(timerInterval);
+                        isTimerRunning = false;
+                        btn.innerText = 'Start';
+                        btn.className = 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2 rounded-xl text-sm transition';
+                        playSFX('eliminate');
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timerSeconds = discussionMinutes * 60;
+            const btn = document.getElementById('timer-start-btn');
+            if (btn) {
+                btn.innerText = 'Start';
+                btn.className = 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2 rounded-xl text-sm transition';
+            }
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timer-display');
+            if (!display) return;
+            const mins = Math.floor(timerSeconds / 60);
+            const secs = timerSeconds % 60;
+            display.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        /* ================= 8. WIN CONDITIONS & GAME STATE ================= */
+        function updateTopStatus() {
+            document.getElementById('cycle-count').innerText = cycleNumber;
+            const aliveMafia = players.filter(p => p.role && p.role.team === 'Mafia' && p.isAlive).length;
+            const aliveTown = players.filter(p => p.role && p.role.team !== 'Mafia' && p.isAlive).length;
+
+            document.getElementById('alive-mafia-count').innerText = aliveMafia;
+            document.getElementById('alive-town-count').innerText = aliveTown;
+        }
+
+        function checkVictoryConditions() {
+            const aliveMafias = players.filter(p => p.role && p.role.team === 'Mafia' && p.isAlive);
+            const aliveTowns = players.filter(p => p.role && p.role.team === 'Town' && p.isAlive);
+            const aliveNeutrals = players.filter(p => p.role && p.role.team === 'Neutral' && p.isAlive);
+
+            if (aliveMafias.length === 0) {
+                triggerVictory('Town');
+                return true;
+            } else if (aliveMafias.length >= (aliveTowns.length + aliveNeutrals.length)) {
+                triggerVictory('Mafia');
+                return true;
+            }
+            return false;
+        }
+
+        function triggerVictory(winner, jesterWinnerName = '') {
+            showScreen('screen-victory');
+            playSFX('win');
+
+            const titleEl = document.getElementById('victory-title');
+            const subtitleEl = document.getElementById('victory-subtitle');
+            const iconEl = document.getElementById('victory-icon-container');
+            const grid = document.getElementById('final-roles-grid');
+
+            if (winner === 'Jester') {
+                iconEl.innerText = '🃏🎭';
+                titleEl.innerText = 'JESTER WINS!';
+                titleEl.className = 'text-4xl md:text-6xl font-black font-cinzel text-amber-400 mb-2';
+                subtitleEl.innerText = `🤡 ${jesterWinnerName} successfully tricked the town into voting them out! Extraordinary chaotic triumph!`;
+            } else if (winner === 'Mafia') {
+                iconEl.innerText = '🕵️‍♂️👑';
+                titleEl.innerText = 'MAFIA WINS!';
+                titleEl.className = 'text-4xl md:text-6xl font-black font-cinzel text-rose-500 mb-2';
+                subtitleEl.innerText = 'The Mafia outmaneuvered the citizens and seized control of the city!';
+            } else {
+                iconEl.innerText = '🏙️⭐';
+                titleEl.innerText = 'TOWN WINS!';
+                titleEl.className = 'text-4xl md:text-6xl font-black font-cinzel text-emerald-400 mb-2';
+                subtitleEl.innerText = 'All Mafias have been caught and eliminated! Peace is restored.';
+            }
+
+            grid.innerHTML = '';
+            players.forEach(p => {
+                const item = document.createElement('div');
+                const pRole = p.role || { title: 'Civilian', icon: '🧑', team: 'Town' };
+                item.className = `p-3 rounded-xl border flex justify-between items-center text-sm ${
+                    pRole.team === 'Mafia' 
+                        ? 'bg-rose-950/40 border-rose-900/60 text-rose-200' 
+                        : pRole.id === 'jester' || pRole.team === 'Neutral'
+                        ? 'bg-amber-950/40 border-amber-900/60 text-amber-200'
+                        : 'bg-slate-900 border-slate-800 text-slate-300'
+                }`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span>${p.isAlive ? '💚' : '💀'}</span>
+                        <span class="font-bold">${escapeHTML(p.name)}</span>
+                    </div>
+                    <span class="font-semibold text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800">${pRole.icon} ${pRole.title}</span>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function resetGameToSetup() {
+            cycleNumber = 1;
+            players = [];
+            document.getElementById('top-status-bar').classList.add('hidden');
+            renderSetupPlayers();
+            renderRolesConfigList();
+            showScreen('screen-setup');
+            playSFX('click');
+        }
+
+        /* ================= UTILITY FUNCTIONS ================= */
+        function showScreen(screenId) {
+            const screens = ['screen-setup', 'screen-reveal', 'screen-night', 'screen-day', 'screen-victory'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (id === screenId) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
